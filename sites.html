@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E-Bike Sampling Sites</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+#header {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: white; padding: 16px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+#header h1 { font-size: 22px; font-weight: 600; letter-spacing: 0.5px; }
+#header .subtitle { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+.legend {
+  display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 6px; font-size: 13px; color: #ddd;
+}
+.legend-dot {
+  width: 14px; height: 14px; border-radius: 50%; border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+#map { height: calc(100vh - 64px); width: 100%; }
+.controls {
+  position: absolute; top: 80px; right: 12px; z-index: 1000;
+  background: white; border-radius: 10px; padding: 14px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2); max-width: 220px;
+}
+.controls h3 { font-size: 13px; margin-bottom: 10px; color: #333; font-weight: 600; }
+.controls label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #555; margin-bottom: 6px; cursor: pointer;
+}
+.controls input[type="checkbox"] { accent-color: #0f3460; }
+.county-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+}
+.stats {
+  position: absolute; bottom: 24px; left: 12px; z-index: 1000;
+  background: rgba(255,255,255,0.95); border-radius: 10px; padding: 12px 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15); font-size: 12px; color: #333;
+}
+.stats span { font-weight: 700; }
+.site-popup { font-size: 13px; line-height: 1.6; }
+.site-popup .site-id { font-size: 16px; font-weight: 700; color: #0f3460; }
+.site-popup .county-tag {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 600; color: white; margin-top: 4px;
+}
+.site-popup .bike-tag {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 600; margin-top: 4px;
+}
+</style>
+</head>
+<body>
+<div id="header">
+  <div>
+    <h1>E-Bike Sampling Observation Sites</h1>
+    <div class="subtitle">Hillsborough, Pinellas &amp; Pasco Counties</div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#2ecc71;"></div> Bike Lane</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div> No Bike Lane</div>
+  </div>
+</div>
+<div id="map"></div>
+
+<div class="controls" id="filterPanel">
+  <h3>Filter by County</h3>
+  <label><input type="checkbox" checked data-county="Hillsborough">
+    <span class="county-dot" style="background:#3498db;"></span> Hillsborough (34)</label>
+  <label><input type="checkbox" checked data-county="Pinellas">
+    <span class="county-dot" style="background:#9b59b6;"></span> Pinellas (30)</label>
+  <label><input type="checkbox" checked data-county="Pasco">
+    <span class="county-dot" style="background:#e67e22;"></span> Pasco (20)</label>
+  <hr style="margin:10px 0; border:none; border-top:1px solid #eee;">
+  <h3>Filter by Type</h3>
+  <label><input type="checkbox" checked data-type="Bike Lane">
+    <span class="county-dot" style="background:#2ecc71;"></span> Bike Lane (43)</label>
+  <label><input type="checkbox" checked data-type="No Bike Lane">
+    <span class="county-dot" style="background:#e74c3c;"></span> No Bike Lane (41)</label>
+</div>
+
+<div class="stats" id="statsPanel">
+  Showing <span id="visCount">84</span> of <span>84</span> sites
+</div>
+
+<script>
+const sites = [{"id": 101, "county": "Hillsborough", "lat": 27.891501, "lng": -82.506067, "type": "Bike Lane"}, {"id": 102, "county": "Hillsborough", "lat": 28.069477, "lng": -82.4373, "type": "Bike Lane"}, {"id": 103, "county": "Hillsborough", "lat": 28.085732, "lng": -82.409761, "type": "Bike Lane"}, {"id": 104, "county": "Hillsborough", "lat": 28.054537, "lng": -82.441731, "type": "Bike Lane"}, {"id": 105, "county": "Hillsborough", "lat": 28.069072, "lng": -82.413143, "type": "Bike Lane"}, {"id": 106, "county": "Hillsborough", "lat": 27.981964, "lng": -82.286374, "type": "Bike Lane"}, {"id": 107, "county": "Hillsborough", "lat": 27.937575, "lng": -82.293471, "type": "Bike Lane"}, {"id": 108, "county": "Hillsborough", "lat": 28.064163, "lng": -82.306005, "type": "Bike Lane"}, {"id": 109, "county": "Hillsborough", "lat": 27.713005, "lng": -82.404002, "type": "Bike Lane"}, {"id": 110, "county": "Hillsborough", "lat": 27.712461, "lng": -82.33782, "type": "Bike Lane"}, {"id": 111, "county": "Hillsborough", "lat": 27.922427, "lng": -82.379932, "type": "Bike Lane"}, {"id": 112, "county": "Hillsborough", "lat": 27.939011, "lng": -82.121572, "type": "Bike Lane"}, {"id": 113, "county": "Hillsborough", "lat": 27.963809, "lng": -82.401788, "type": "Bike Lane"}, {"id": 114, "county": "Hillsborough", "lat": 28.028459, "lng": -82.636975, "type": "Bike Lane"}, {"id": 115, "county": "Hillsborough", "lat": 28.001581, "lng": -82.414002, "type": "Bike Lane"}, {"id": 116, "county": "Hillsborough", "lat": 28.149622, "lng": -82.49539, "type": "Bike Lane"}, {"id": 117, "county": "Hillsborough", "lat": 27.944699, "lng": -82.476518, "type": "Bike Lane"}, {"id": 118, "county": "Hillsborough", "lat": 27.936934, "lng": -82.494255, "type": "No Bike Lane"}, {"id": 119, "county": "Hillsborough", "lat": 27.94711, "lng": -82.458629, "type": "No Bike Lane"}, {"id": 120, "county": "Hillsborough", "lat": 27.996624, "lng": -82.564849, "type": "No Bike Lane"}, {"id": 121, "county": "Hillsborough", "lat": 27.970402, "lng": -82.459547, "type": "No Bike Lane"}, {"id": 122, "county": "Hillsborough", "lat": 28.032653, "lng": -82.425392, "type": "No Bike Lane"}, {"id": 123, "county": "Hillsborough", "lat": 28.022479, "lng": -82.45127, "type": "No Bike Lane"}, {"id": 124, "county": "Hillsborough", "lat": 28.109774, "lng": -82.386716, "type": "No Bike Lane"}, {"id": 125, "county": "Hillsborough", "lat": 28.076537, "lng": -82.506862, "type": "No Bike Lane"}, {"id": 126, "county": "Hillsborough", "lat": 28.000299, "lng": -82.310891, "type": "No Bike Lane"}, {"id": 127, "county": "Hillsborough", "lat": 27.9972, "lng": -82.121558, "type": "No Bike Lane"}, {"id": 128, "county": "Hillsborough", "lat": 27.872008, "lng": -82.326737, "type": "No Bike Lane"}, {"id": 129, "county": "Hillsborough", "lat": 27.792082, "lng": -82.334948, "type": "No Bike Lane"}, {"id": 130, "county": "Hillsborough", "lat": 27.72251, "lng": -82.434273, "type": "No Bike Lane"}, {"id": 131, "county": "Hillsborough", "lat": 27.850403, "lng": -82.178178, "type": "No Bike Lane"}, {"id": 132, "county": "Hillsborough", "lat": 28.051431, "lng": -82.570218, "type": "No Bike Lane"}, {"id": 133, "county": "Hillsborough", "lat": 28.026249, "lng": -82.563389, "type": "No Bike Lane"}, {"id": 134, "county": "Hillsborough", "lat": 27.996221, "lng": -82.486604, "type": "No Bike Lane"}, {"id": 201, "county": "Pinellas", "lat": 27.770345, "lng": -82.636168, "type": "Bike Lane"}, {"id": 202, "county": "Pinellas", "lat": 27.75994, "lng": -82.663022, "type": "Bike Lane"}, {"id": 203, "county": "Pinellas", "lat": 27.771209, "lng": -82.648098, "type": "Bike Lane"}, {"id": 204, "county": "Pinellas", "lat": 27.830346, "lng": -82.831336, "type": "Bike Lane"}, {"id": 205, "county": "Pinellas", "lat": 27.733342, "lng": -82.745699, "type": "Bike Lane"}, {"id": 206, "county": "Pinellas", "lat": 27.85074, "lng": -82.691523, "type": "Bike Lane"}, {"id": 207, "county": "Pinellas", "lat": 27.893975, "lng": -82.732755, "type": "Bike Lane"}, {"id": 208, "county": "Pinellas", "lat": 28.034206, "lng": -82.78686, "type": "Bike Lane"}, {"id": 209, "county": "Pinellas", "lat": 28.049733, "lng": -82.728202, "type": "Bike Lane"}, {"id": 210, "county": "Pinellas", "lat": 28.131073, "lng": -82.759067, "type": "Bike Lane"}, {"id": 211, "county": "Pinellas", "lat": 28.107068, "lng": -82.744071, "type": "Bike Lane"}, {"id": 212, "county": "Pinellas", "lat": 28.046673, "lng": -82.687469, "type": "Bike Lane"}, {"id": 213, "county": "Pinellas", "lat": 27.798788, "lng": -82.798628, "type": "Bike Lane"}, {"id": 214, "county": "Pinellas", "lat": 27.880452, "lng": -82.822339, "type": "Bike Lane"}, {"id": 215, "county": "Pinellas", "lat": 28.01948, "lng": -82.757197, "type": "Bike Lane"}, {"id": 216, "county": "Pinellas", "lat": 27.719253, "lng": -82.668878, "type": "No Bike Lane"}, {"id": 217, "county": "Pinellas", "lat": 27.755605, "lng": -82.704476, "type": "No Bike Lane"}, {"id": 218, "county": "Pinellas", "lat": 27.821994, "lng": -82.728529, "type": "No Bike Lane"}, {"id": 219, "county": "Pinellas", "lat": 27.839263, "lng": -82.698527, "type": "No Bike Lane"}, {"id": 220, "county": "Pinellas", "lat": 27.916525, "lng": -82.742355, "type": "No Bike Lane"}, {"id": 221, "county": "Pinellas", "lat": 27.889947, "lng": -82.787104, "type": "No Bike Lane"}, {"id": 222, "county": "Pinellas", "lat": 27.948173, "lng": -82.799847, "type": "No Bike Lane"}, {"id": 223, "county": "Pinellas", "lat": 27.960515, "lng": -82.7543, "type": "No Bike Lane"}, {"id": 224, "county": "Pinellas", "lat": 27.977637, "lng": -82.825947, "type": "No Bike Lane"}, {"id": 225, "county": "Pinellas", "lat": 28.280568, "lng": -82.69878, "type": "No Bike Lane"}, {"id": 226, "county": "Pinellas", "lat": 28.00192, "lng": -82.70894, "type": "No Bike Lane"}, {"id": 227, "county": "Pinellas", "lat": 27.81308, "lng": -82.634619, "type": "No Bike Lane"}, {"id": 228, "county": "Pinellas", "lat": 27.821621, "lng": -82.687706, "type": "No Bike Lane"}, {"id": 229, "county": "Pinellas", "lat": 27.806534, "lng": -82.705871, "type": "No Bike Lane"}, {"id": 230, "county": "Pinellas", "lat": 28.146284, "lng": -82.745231, "type": "No Bike Lane"}, {"id": 301, "county": "Pasco", "lat": 28.18436, "lng": -82.74009, "type": "Bike Lane"}, {"id": 302, "county": "Pasco", "lat": 28.2175, "lng": -82.70507, "type": "Bike Lane"}, {"id": 303, "county": "Pasco", "lat": 28.28195, "lng": -82.71631, "type": "Bike Lane"}, {"id": 304, "county": "Pasco", "lat": 28.33188, "lng": -82.68552, "type": "Bike Lane"}, {"id": 305, "county": "Pasco", "lat": 28.37669, "lng": -82.68139, "type": "Bike Lane"}, {"id": 306, "county": "Pasco", "lat": 28.41647, "lng": -82.19016, "type": "Bike Lane"}, {"id": 307, "county": "Pasco", "lat": 28.23904, "lng": -82.18449, "type": "Bike Lane"}, {"id": 308, "county": "Pasco", "lat": 28.23025, "lng": -82.21704, "type": "Bike Lane"}, {"id": 309, "county": "Pasco", "lat": 28.1858, "lng": -82.35503, "type": "Bike Lane"}, {"id": 310, "county": "Pasco", "lat": 28.23728, "lng": -82.34681, "type": "Bike Lane"}, {"id": 311, "county": "Pasco", "lat": 28.23966, "lng": -82.71544, "type": "Bike Lane"}, {"id": 312, "county": "Pasco", "lat": 28.28071, "lng": -82.69887, "type": "No Bike Lane"}, {"id": 313, "county": "Pasco", "lat": 28.26623, "lng": -82.26094, "type": "No Bike Lane"}, {"id": 314, "county": "Pasco", "lat": 28.21502, "lng": -82.4979, "type": "No Bike Lane"}, {"id": 315, "county": "Pasco", "lat": 28.18101, "lng": -82.6524, "type": "No Bike Lane"}, {"id": 316, "county": "Pasco", "lat": 28.24128, "lng": -82.69399, "type": "No Bike Lane"}, {"id": 317, "county": "Pasco", "lat": 28.40492, "lng": -82.55148, "type": "No Bike Lane"}, {"id": 318, "county": "Pasco", "lat": 28.36311, "lng": -82.19996, "type": "No Bike Lane"}, {"id": 319, "county": "Pasco", "lat": 28.22327, "lng": -82.43758, "type": "No Bike Lane"}, {"id": 320, "county": "Pasco", "lat": 28.37625, "lng": -82.30184, "type": "No Bike Lane"}];
+
+const countyColors = {
+  "Hillsborough": "#3498db",
+  "Pinellas": "#9b59b6",
+  "Pasco": "#e67e22"
+};
+const countyBg = {
+  "Hillsborough": "#3498db",
+  "Pinellas": "#9b59b6",
+  "Pasco": "#e67e22"
+};
+
+const map = L.map('map').setView([28.0, -82.5], 10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 18
+}).addTo(map);
+
+const markers = [];
+
+function createIcon(type, county, siteId) {
+  const color = type === "Bike Lane" ? "#2ecc71" : "#e74c3c";
+  const border = countyColors[county];
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `<div style="
+      width:32px; height:32px; border-radius:50%;
+      background:${color};
+      border:3px solid ${border};
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+      display:flex; align-items:center; justify-content:center;
+      font-size:10px; font-weight:700; color:white;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+      line-height:1;
+    ">${siteId}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -18]
+  });
+}
+
+sites.forEach(s => {
+  const icon = createIcon(s.type, s.county, s.id);
+  const bikeColor = s.type === "Bike Lane" ? "#2ecc71" : "#e74c3c";
+  const popup = `
+    <div class="site-popup">
+      <div class="site-id">Site ${s.id}</div>
+      <span class="county-tag" style="background:${countyBg[s.county]};">
+        ${s.county} County
+      </span>
+      <span class="bike-tag" style="background:${bikeColor}; color:white;">
+        ${s.type}
+      </span>
+      <div style="margin-top:8px; font-size:11px; color:#777;">
+        ${s.lat.toFixed(6)}, ${s.lng.toFixed(6)}
+      </div>
+    </div>`;
+  const marker = L.marker([s.lat, s.lng], { icon })
+    .bindPopup(popup)
+    .bindTooltip(`Site ${s.id}`, { direction: 'top', offset: [0, -18], className: 'site-tooltip' });
+  marker.siteData = s;
+  marker.addTo(map);
+  markers.push(marker);
+});
+
+// Filtering
+document.querySelectorAll('#filterPanel input[type="checkbox"]').forEach(cb => {
+  cb.addEventListener('change', applyFilters);
+});
+
+function applyFilters() {
+  const checkedCounties = new Set();
+  const checkedTypes = new Set();
+  document.querySelectorAll('[data-county]:checked').forEach(cb => checkedCounties.add(cb.dataset.county));
+  document.querySelectorAll('[data-type]:checked').forEach(cb => checkedTypes.add(cb.dataset.type));
+
+  let visible = 0;
+  markers.forEach(m => {
+    const show = checkedCounties.has(m.siteData.county) && checkedTypes.has(m.siteData.type);
+    if (show) {
+      m.addTo(map);
+      visible++;
+    } else {
+      map.removeLayer(m);
+    }
+  });
+  document.getElementById('visCount').textContent = visible;
+}
+</script>
+</body>
+</html>
